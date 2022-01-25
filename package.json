@@ -1,0 +1,14 @@
+{
+  "name": "homebridge-appkettle",
+  "version": "0.0.1",
+  "description": "Homebridge plugin for AppKettle",
+  "main": "index.js",
+  "scripts": {
+    "test": "none"
+  },
+  "keywords": [
+    "homebridge-plugin"
+  ],
+  "author": "Bertin Jacobs",
+  "license": "ISC"
+}
