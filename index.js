@@ -6,13 +6,13 @@ module.exports = (api) => {
 
 var MyKettle = {"cmd": "unknown",
 				"status": "unknown",
-				"keep_warm_sec": 10,
+				"keep_warm_sec": 0,
 				"keep_warm": false,
-				"current_temp": 100,
-				"target_temp": 100,
-				"set_temp": 100,
+				"current_temp": 0,
+				"target_temp": 0,
+				"set_temp": 0,
 				"volume": 0,
-				"power":"ON",
+				"power": "OFF",
 				"seq": 0
 				}
 
@@ -22,21 +22,19 @@ class AppKettle {
     this.config = config;
     this.api = api;
 	
-	//Get Kettle config from logs
 	this.kettleIP = config.ip;
 	this.kettlePort = config.port;
-	//this.kettleIMEI = confog.imei;
-	
+
 	MyKettle.target_temp = config.temp
 	MyKettle.keep_warm = config.keepwarm
-	MyKettle.keepwarm_seconds = config.keepwarmsec
+	MyKettle.keep_warm_sec = config.keepwarmsec
 	
 	if ((this.kettlePort == null) || (this.kettlePort == null)){
 		 this.log.error("AppKettle will not be initialized due to a configuration error. Check IP and Port in the config");
 		 return
 	}
 
-    this.log.debug('AppKettle Accessory Plugin Loaded');
+    this.log.debug('AppKettle Accessory Plugin Loaded: ', MyKettle);
 
     // your accessory must have an AccessoryInformation service
     this.informationService = new this.api.hap.Service.AccessoryInformation()
@@ -51,7 +49,7 @@ class AppKettle {
       .onGet(this.getOnHandler.bind(this))   // bind to getOnHandler method below
       .onSet(this.setOnHandler.bind(this));  // bind to setOnHandler method below
 	 
-	const apk = this.apk = new AppKettleClient(this.kettleIP,this.kettlePort);
+	const apk = this.apk = new AppKettleClient(this.log,this.kettleIP,this.kettlePort);
 	
 	apk.on('connected', this._apkConnected.bind(this))
 	apk.on('kettleState', this._updateKettleState.bind(this))
@@ -64,12 +62,21 @@ _apkConnected () {
 }//_apkConnected
  
 _updateKettleState (newkettlestate){
-	this.log(newkettlestate);
-	this.MyKettleState = newkettlestate;
-	this.log('AppKettle state changed outside HomeKit: ', this.MyKettleState.power)
-	const kettleState = (this.MyKettleState.power == "On") ? true : false;
+	this.log.debug("Before:",MyKettle);
+	
+	MyKettle.status = newkettlestate.status;
+	MyKettle.power = newkettlestate.power;
+	MyKettle.seq = newkettlestate.seq;
+	this.log.debug("New:",MyKettle);
+	
+
+	
+	this.log('AppKettle state changed outside HomeKit: ', MyKettle.power)
+
+	const powerState = (MyKettle.power == "ON") ? true : false;
 	this.switchService.getCharacteristic(this.api.hap.Characteristic.On)
-		.updateValue(kettleState);
+		.updateValue(powerState);
+	this.log.debug('AppKettle state changed outside HomeKit: ', powerState)
 }
   
   getServices() {
@@ -81,17 +88,18 @@ _updateKettleState (newkettlestate){
   }
 
   async getOnHandler() {
-    this.log.info('Getting AppKettle state: ',MyKettleState.power);
-	const kettleState = (MyKettleState.power == "On") ? true :false;
-  
-    return false;
+    this.log.info('Getting AppKettle state: ',MyKettle.power);
+	const powerState = (MyKettle.power == "ON") ? true : false;
+
+    return powerState;
   }
   
   async setOnHandler(value) {
     this.log.info('Setting switch state to:', value);
 	if (value) {
 		//Turn on the Kettle
-		this.apk.turn_on(MyKettleState.target_temp,MyKettleState.keepwarm_seconds, MyKettleState.keepwarm);
+		this.log.debug("Turn Kettle On: ",MyKettle);
+		this.apk.turn_on(MyKettle.target_temp,MyKettle.keep_warm_sec, MyKettle.keep_warm);
 	}else {
 		//Turn off the kettle
 		this.apk.turn_off();
